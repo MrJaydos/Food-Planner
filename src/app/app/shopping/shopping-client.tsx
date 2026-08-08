@@ -16,6 +16,7 @@ import {
 } from "@/lib/week";
 import { EmptyState } from "@/components/empty-state";
 import { AddManualItem } from "./add-manual-item";
+import { mutateOrQueue, setupAutoFlush } from "@/lib/offline-queue";
 
 export function ShoppingClient({
   weekStart,
@@ -33,6 +34,9 @@ export function ShoppingClient({
   useEffect(() => {
     setList(initialList);
   }, [initialList, weekStart]);
+
+  // Replay any offline check-offs when connectivity returns.
+  useEffect(() => setupAutoFlush(), []);
 
   function goWeek(offset: number) {
     const target = formatDateOnly(addDays(dateOnly(weekStart), offset * 7));
@@ -62,19 +66,23 @@ export function ShoppingClient({
     if (!list) return;
     const checked = !item.checked;
     setList(patchItem(list, item.id, { checked })); // optimistic
-    await fetch(`/api/v1/shopping-list-items/${item.id}`, {
+    // Queues automatically if offline, syncing when back online.
+    await mutateOrQueue({
+      key: `item:${item.id}`,
+      url: `/api/v1/shopping-list-items/${item.id}`,
       method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ checked }),
-    }).catch(() => {});
+      body: { checked },
+    });
   }
 
   async function remove(item: ShoppingItemDTO) {
     if (!list) return;
     setList(removeItem(list, item.id)); // optimistic
-    await fetch(`/api/v1/shopping-list-items/${item.id}`, {
+    await mutateOrQueue({
+      key: `item:${item.id}`,
+      url: `/api/v1/shopping-list-items/${item.id}`,
       method: "DELETE",
-    }).catch(() => {});
+    });
   }
 
   function onManualAdded(item: ShoppingItemDTO) {

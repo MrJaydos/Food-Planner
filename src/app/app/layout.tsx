@@ -1,5 +1,6 @@
 import { requireContext } from "@/lib/guard";
 import { BottomNav } from "@/components/app-shell";
+import { InstallHint } from "@/components/install-hint";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export default async function AppLayout({
   return (
     <div className="mx-auto min-h-dvh max-w-2xl pb-20">
       {children}
+      <InstallHint />
       <BottomNav />
     </div>
   );
