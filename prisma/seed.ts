@@ -8,27 +8,41 @@ const prisma = new PrismaClient();
 const DEMO_EMAIL = "demo@foodplanner.local";
 
 async function main() {
+  // Reuse the demo user's household if it already exists. Signing in as the
+  // demo address (which the README tells you to do) creates the user on its
+  // own, so keying "already seeded" off the user would refuse to seed a
+  // database that has no recipes in it at all.
   const existing = await prisma.user.findUnique({
     where: { email: DEMO_EMAIL },
+    select: { memberships: { select: { householdId: true }, take: 1 } },
   });
-  if (existing) {
-    console.log("Demo data already seeded — nothing to do.");
-    return;
-  }
 
-  const household = await prisma.household.create({
-    data: { name: "Demo Kitchen" },
-  });
-  await prisma.user.create({
-    data: {
-      email: DEMO_EMAIL,
-      name: "Demo Cook",
-      memberships: {
-        create: { householdId: household.id, role: "OWNER" },
+  let hid = existing?.memberships[0]?.householdId ?? null;
+
+  if (hid) {
+    const recipeCount = await prisma.recipe.count({
+      where: { householdId: hid },
+    });
+    if (recipeCount > 0) {
+      console.log("Demo data already seeded — nothing to do.");
+      return;
+    }
+    console.log("Demo user exists but has no recipes — seeding into it.");
+  } else {
+    const household = await prisma.household.create({
+      data: { name: "Demo Kitchen" },
+    });
+    await prisma.user.create({
+      data: {
+        email: DEMO_EMAIL,
+        name: "Demo Cook",
+        memberships: {
+          create: { householdId: household.id, role: "OWNER" },
+        },
       },
-    },
-  });
-  const hid = household.id;
+    });
+    hid = household.id;
+  }
 
   // --- Sub-recipes first -------------------------------------------------
   const chimichurri = await createRecipe(hid, {
