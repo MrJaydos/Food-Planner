@@ -7,6 +7,8 @@ import {
   copyWeekSchema,
   manualItemSchema,
   updateItemSchema,
+  ideaInputSchema,
+  updateIdeaSchema,
 } from "./validation";
 import type * as Api from "./api-types";
 
@@ -306,6 +308,20 @@ type _ShoppingList = Assert<
   Equal<z.infer<typeof shoppingList>, Api.ShoppingListDTO>
 >;
 
+// --- Ideas & quick notes --------------------------------------------------
+
+const idea = z.object({
+  id: z.string(),
+  text: z.string(),
+  url: z.string().nullable(),
+  done: z.boolean(),
+  convertedRecipeId: z.string().nullable(),
+  createdByName: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+type _Idea = Assert<Equal<z.infer<typeof idea>, Api.IdeaDTO>>;
+
 // --- Suggestions ----------------------------------------------------------
 
 const surpriseResult = z.object({
@@ -374,6 +390,7 @@ const schemas = {
   CopyWeekResult: copyWeekResult,
   ShoppingItem: shoppingItem,
   ShoppingList: shoppingList,
+  Idea: idea,
   SurpriseResult: surpriseResult,
   OverlapSuggestion: overlapSuggestion,
   HealthStatus: healthStatus,
@@ -386,6 +403,8 @@ const schemas = {
   CopyWeekInput: copyWeekSchema,
   ManualItemInput: manualItemSchema,
   UpdateItemInput: updateItemSchema,
+  IdeaInput: ideaInputSchema,
+  UpdateIdeaInput: updateIdeaSchema,
 } as const;
 
 type SchemaName = keyof typeof schemas;
@@ -860,6 +879,34 @@ function buildPaths() {
         delete: {
           summary: "Remove an item",
           parameters: [idParam("itemId")],
+          responses: { 200: okResponse("Deleted", ref("OkResult")), ...common },
+        },
+      },
+      "/ideas": {
+        get: {
+          summary: "Ideas and quick notes for the household",
+          description: "Open ideas first, newest first within each group.",
+          responses: { 200: okResponse("Ideas", arrayOf("Idea")), ...common },
+        },
+        post: {
+          summary: "Jot down an idea",
+          description:
+            "`url` is optional — the first link in the text is picked up " +
+            "automatically when it isn't given.",
+          requestBody: jsonBody("IdeaInput"),
+          responses: { 201: okResponse("Created", ref("Idea")), ...common },
+        },
+      },
+      "/ideas/{ideaId}": {
+        patch: {
+          summary: "Edit, tick off, or link an idea to the recipe it became",
+          parameters: [idParam("ideaId")],
+          requestBody: jsonBody("UpdateIdeaInput"),
+          responses: { 200: okResponse("Updated", ref("Idea")), ...common },
+        },
+        delete: {
+          summary: "Delete an idea",
+          parameters: [idParam("ideaId")],
           responses: { 200: okResponse("Deleted", ref("OkResult")), ...common },
         },
       },

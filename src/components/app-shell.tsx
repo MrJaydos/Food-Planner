@@ -55,6 +55,13 @@ const items: NavItem[] = [
     icon: <path d="M4 4h13a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3zM8 8h8M8 12h8M8 16h5" />,
   },
   {
+    href: "/app/ideas",
+    label: "Ideas",
+    icon: (
+      <path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.4.3.6.8.6 1.3v.3h5.8v-.3c0-.5.2-1 .6-1.3A6 6 0 0012 3z" />
+    ),
+  },
+  {
     href: "/app/shopping",
     label: "Shopping",
     icon: (
@@ -133,7 +140,11 @@ export function BottomNav() {
                 )}
               >
                 <NavIcon>{item.icon}</NavIcon>
-                {item.label}
+                {/* Six tabs leaves ~53px per cell on a small phone — keep the
+                    label on one line rather than letting it wrap the row. */}
+                <span className="w-full truncate px-0.5 text-center">
+                  {item.label}
+                </span>
               </Link>
             </li>
           );

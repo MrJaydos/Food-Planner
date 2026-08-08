@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireContext } from "@/lib/guard";
+import { countOpenIdeas } from "@/lib/ideas";
 import { PageHeader } from "@/components/page-header";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function Dashboard() {
   const ctx = await requireContext("/app");
   const firstName = ctx.user.name?.split(" ")[0] ?? null;
+  const openIdeas = await countOpenIdeas(ctx.household.id);
 
   const tiles = [
     {
@@ -23,6 +25,13 @@ export default async function Dashboard() {
       href: "/app/shopping",
       title: "Shopping list",
       desc: "Generated from your week.",
+    },
+    {
+      href: "/app/ideas",
+      title: "Ideas",
+      desc: openIdeas
+        ? `${openIdeas} to try — jot down more.`
+        : "Jot down meals to try later.",
     },
   ];
 

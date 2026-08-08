@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { createRecipe } from "../src/lib/recipes";
 import { addEntry } from "../src/lib/meal-plans";
+import { createIdea } from "../src/lib/ideas";
 import { currentWeekStart } from "../src/lib/week";
 
 const prisma = new PrismaClient();
@@ -162,10 +163,19 @@ async function main() {
     note: "Date night",
   });
 
+  // --- A couple of jotted ideas ------------------------------------------
+  await createIdea(hid, null, {
+    text: "Miso aubergine — the one from that place in town",
+  });
+  await createIdea(hid, null, {
+    text: "Proper carbonara, no cream: https://example.com/carbonara",
+  });
+
   console.log("Seeded demo data:");
   console.log("  Household: Demo Kitchen");
   console.log("  6 recipes (incl. Chimichurri & Guacamole as sub-recipes of Steak Tacos)");
   console.log(`  A starter plan for the week of ${week}`);
+  console.log("  2 jotted ideas");
   console.log(`\nSign in as ${DEMO_EMAIL} (magic link will be printed to this console in dev).`);
 }
 

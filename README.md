@@ -32,6 +32,10 @@ installable as a PWA, and deployed on [Coolify](https://coolify.io) via a Docker
   week already needs are offered first ("Also uses coriander and lime"), to cut
   waste and shopping volume. Staples are ignored, so it doesn't just tell you
   everything shares salt.
+- **Ideas & quick notes** — a one-line jot pad for meals you want to try, for
+  when there's no time to write a whole recipe. Paste a link and it's picked up
+  automatically; later, one tap turns a note into a recipe (or an import), and
+  ticks the note off pointing at what it became.
 - **PWA** — installable, with the shopping list readable offline; check-offs made
   offline sync when you're back online.
 
@@ -60,7 +64,8 @@ validate against, so `npm run typecheck` fails if they diverge.
 ### Demo data
 
 `npm run seed` creates a **Demo Kitchen** household with six recipes (including
-Chimichurri & Guacamole as sub-recipes of Steak Tacos) and a starter weekly plan.
+Chimichurri & Guacamole as sub-recipes of Steak Tacos), a starter weekly plan
+and a couple of jotted ideas.
 In dev, sign in as `demo@foodplanner.local` — the magic link is printed to the
 server console.
 
@@ -76,6 +81,8 @@ server console.
   assigned to a member or "everyone".
 - **ShoppingList** is generated from a week, expanding sub-recipes recursively and
   aggregating ingredients; items are checkable and manually editable.
+- **Idea** is a free-text note owned by the household — the pre-recipe stage,
+  with an optional link and a pointer to the recipe it eventually became.
 
 ## Local development
 

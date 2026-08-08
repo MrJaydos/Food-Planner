@@ -41,6 +41,7 @@ model Household {
   mealPlans     MealPlan[]
   shoppingLists ShoppingList[]
   invites       Invite[]
+  ideas         Idea[]
 
   @@map("households")
 }
@@ -63,6 +64,7 @@ model Membership {
   // Meal-slot entries assigned specifically to this member (null assignee = everyone).
   assignedEntries MealSlotEntry[] @relation("EntryAssignee")
   createdInvites  Invite[]        @relation("InviteCreator")
+  createdIdeas    Idea[]          @relation("IdeaAuthor")
 
   @@unique([userId, householdId])
   @@index([householdId])
@@ -189,6 +191,7 @@ model Recipe {
   usedInParent RecipeComponent[] @relation("ChildRecipe")
 
   slotEntries MealSlotEntry[]
+  fromIdeas   Idea[]          @relation("IdeaRecipe")
 
   @@index([householdId])
   @@map("recipes")
@@ -347,4 +350,31 @@ model ShoppingListItem {
 
   @@index([shoppingListId])
   @@map("shopping_list_items")
+}
+
+// ---------------------------------------------------------------------------
+// Ideas & quick notes
+// ---------------------------------------------------------------------------
+
+// A jotted-down thought: a meal worth trying, a link to import later, a note to
+// self. Deliberately unstructured — capture has to be one field and one tap, or
+// it doesn't happen. An idea is promoted into a real Recipe later, and
+// `convertedRecipeId` remembers what it became so the note can link to it.
+model Idea {
+  id                    String   @id @default(cuid())
+  householdId           String
+  text                  String
+  url                   String? // a link found in (or supplied with) the text
+  done                  Boolean  @default(false)
+  convertedRecipeId     String? // set when the idea became a recipe
+  createdByMembershipId String? // who jotted it; null if they've since left
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  household       Household   @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  convertedRecipe Recipe?     @relation("IdeaRecipe", fields: [convertedRecipeId], references: [id], onDelete: SetNull)
+  createdBy       Membership? @relation("IdeaAuthor", fields: [createdByMembershipId], references: [id], onDelete: SetNull)
+
+  @@index([householdId, done])
+  @@map("ideas")
 }

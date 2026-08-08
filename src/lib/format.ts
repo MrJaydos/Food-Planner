@@ -49,6 +49,19 @@ export function lastUsedLabel(iso: string | null | undefined): string {
   return "Over a year ago";
 }
 
+// "Just now" / "40m ago" / "Yesterday" / "8 Aug" — for jotted notes, where the
+// useful question is "how fresh is this", not the exact timestamp.
+export function timeAgo(iso: string): string {
+  const then = new Date(iso);
+  const minutes = Math.floor((Date.now() - then.getTime()) / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  if (hours < 48) return "Yesterday";
+  return then.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
 export const MEAL_TYPE_LABELS: Record<string, string> = {
   BREAKFAST: "Breakfast",
   LUNCH: "Lunch",

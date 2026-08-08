@@ -128,6 +128,10 @@ export type {
   UpdateItemInput,
 } from "./shopping-queries";
 
+// --- Ideas & quick notes --------------------------------------------------
+
+export type { IdeaDTO, IdeaInput, UpdateIdeaInput } from "./ideas";
+
 // --- Suggestions ----------------------------------------------------------
 
 export type { SurpriseResult } from "./suggestions";

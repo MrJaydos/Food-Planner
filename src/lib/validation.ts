@@ -98,3 +98,17 @@ export const updateItemSchema = z.object({
   unit: z.string().trim().max(40).nullable().optional(),
   category: categoryEnum.optional(),
 });
+
+// --- Ideas & quick notes --------------------------------------------------
+
+export const ideaInputSchema = z.object({
+  text: z.string().trim().min(1).max(2000),
+  url: z.string().trim().url().max(2000).nullable().optional(),
+});
+
+export const updateIdeaSchema = z.object({
+  text: z.string().trim().min(1).max(2000).optional(),
+  url: z.string().trim().url().max(2000).nullable().optional(),
+  done: z.boolean().optional(),
+  convertedRecipeId: z.string().min(1).nullable().optional(),
+});

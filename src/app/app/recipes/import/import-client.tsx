@@ -3,8 +3,14 @@
 import { useState } from "react";
 import { RecipeEditor, type RecipeEditorInitial } from "@/components/recipe-editor";
 
-export function ImportClient() {
-  const [url, setUrl] = useState("");
+export function ImportClient({
+  initialUrl,
+  fromIdeaId,
+}: {
+  initialUrl?: string;
+  fromIdeaId?: string;
+}) {
+  const [url, setUrl] = useState(initialUrl ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<RecipeEditorInitial | null>(null);
@@ -75,7 +81,7 @@ export function ImportClient() {
             Imported! Review and edit below, then save.
           </p>
         )}
-        <RecipeEditor mode="create" initial={preview} />
+        <RecipeEditor mode="create" initial={preview} fromIdeaId={fromIdeaId} />
       </>
     );
   }

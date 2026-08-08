@@ -61,10 +61,13 @@ export function RecipeEditor({
   mode,
   recipeId,
   initial,
+  fromIdeaId,
 }: {
   mode: "create" | "edit";
   recipeId?: string;
   initial?: RecipeEditorInitial;
+  /** The quick note this recipe grew out of; ticked off once the save lands. */
+  fromIdeaId?: string;
 }) {
   const router = useRouter();
 
@@ -264,6 +267,15 @@ export function RecipeEditor({
         return;
       }
       const id = mode === "edit" ? recipeId : body.data.id;
+      if (fromIdeaId && mode === "create") {
+        // Best-effort: the recipe is already saved, so a failure here should
+        // leave the idea sitting in the list rather than block the redirect.
+        await fetch(`/api/v1/ideas/${fromIdeaId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ done: true, convertedRecipeId: id }),
+        }).catch(() => null);
+      }
       router.push(`/app/recipes/${id}`);
       router.refresh();
     } catch {
