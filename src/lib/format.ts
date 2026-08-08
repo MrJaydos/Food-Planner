@@ -37,6 +37,18 @@ export function formatTime(minutes: number | null | undefined): string | null {
   return `${m}m`;
 }
 
+// "Never cooked" / "Cooked this week" / "3 weeks ago" style label.
+export function lastUsedLabel(iso: string | null | undefined): string {
+  if (!iso) return "Never cooked";
+  const then = new Date(iso).getTime();
+  const weeks = Math.floor((Date.now() - then) / (7 * 24 * 60 * 60 * 1000));
+  if (weeks <= 0) return "Cooked recently";
+  if (weeks === 1) return "1 week ago";
+  if (weeks < 8) return `${weeks} weeks ago`;
+  if (weeks < 52) return `${Math.floor(weeks / 4)} months ago`;
+  return "Over a year ago";
+}
+
 export const MEAL_TYPE_LABELS: Record<string, string> = {
   BREAKFAST: "Breakfast",
   LUNCH: "Lunch",

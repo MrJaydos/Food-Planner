@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { requireContext } from "@/lib/guard";
 import { listRecipes } from "@/lib/recipe-queries";
+import { refreshLastUsed } from "@/lib/suggestions";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
-import { formatTime } from "@/lib/format";
+import { formatTime, lastUsedLabel } from "@/lib/format";
 import { RecipeSearch } from "./recipe-search";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export default async function RecipesPage({
 }) {
   const ctx = await requireContext("/app/recipes");
   const { q } = await searchParams;
+  await refreshLastUsed(ctx.household.id);
   const recipes = await listRecipes(ctx.household.id, { q });
 
   return (
@@ -97,6 +99,9 @@ export default async function RecipesPage({
                             {t}
                           </span>
                         ))}
+                        <span className="text-black/35 dark:text-white/35">
+                          · {lastUsedLabel(r.lastUsedAt)}
+                        </span>
                       </div>
                     </div>
                   </Link>

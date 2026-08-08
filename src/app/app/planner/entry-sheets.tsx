@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import type { MealType } from "@prisma/client";
 import type { WeekEntryDTO } from "@/lib/meal-plans";
 import { Sheet } from "@/components/sheet";
+import { lastUsedLabel } from "@/lib/format";
 import type { PlannerRecipe, PlannerMember } from "./planner-client";
 
 type Tab = "recipe" | "custom" | "eating_out";
@@ -64,6 +65,29 @@ export function AddEntrySheet({
   const [q, setQ] = useState("");
   const [selectedRecipe, setSelectedRecipe] = useState<PlannerRecipe | null>(null);
   const [multiplier, setMultiplier] = useState("1");
+  const [surpriseBusy, setSurpriseBusy] = useState(false);
+
+  async function surprise() {
+    setSurpriseBusy(true);
+    try {
+      const params = new URLSearchParams({ mealType });
+      if (selectedRecipe) params.set("exclude", selectedRecipe.id);
+      const res = await fetch(`/api/v1/recipes/surprise?${params}`);
+      if (res.ok) {
+        const p = (await res.json()).data;
+        setSelectedRecipe({
+          id: p.id,
+          title: p.title,
+          imageUrl: p.imageUrl,
+          suitableFor: p.suitableFor,
+          servings: null,
+          lastUsedAt: p.lastUsedAt,
+        });
+      }
+    } finally {
+      setSurpriseBusy(false);
+    }
+  }
 
   // Custom / eating out
   const [customText, setCustomText] = useState("");
@@ -73,11 +97,14 @@ export function AddEntrySheet({
     const base = recipes.filter((r) =>
       q ? r.title.toLowerCase().includes(q.toLowerCase()) : true,
     );
-    // Prioritise recipes tagged for this meal type.
+    // Prioritise recipes tagged for this meal type, then "haven't had in a
+    // while" (never used first, then oldest lastUsedAt first).
+    const stamp = (r: PlannerRecipe) =>
+      r.lastUsedAt ? new Date(r.lastUsedAt).getTime() : 0;
     return [...base].sort((a, b) => {
       const am = a.suitableFor.includes(mealType) ? 0 : 1;
       const bm = b.suitableFor.includes(mealType) ? 0 : 1;
-      return am - bm || a.title.localeCompare(b.title);
+      return am - bm || stamp(a) - stamp(b) || a.title.localeCompare(b.title);
     });
   }, [recipes, q, mealType]);
 
@@ -111,28 +138,48 @@ export function AddEntrySheet({
 
       {tab === "recipe" ? (
         <div className="space-y-3">
-          <input
-            className="input"
-            placeholder="Search recipes…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            autoFocus
-          />
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              placeholder="Search recipes…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              autoFocus
+            />
+            <button
+              onClick={surprise}
+              disabled={surpriseBusy || recipes.length === 0}
+              className="btn-secondary shrink-0 !px-3"
+              title="Surprise me"
+            >
+              {surpriseBusy ? "…" : "🎲 Surprise"}
+            </button>
+          </div>
           {recipes.length === 0 ? (
             <p className="py-6 text-center text-sm text-black/50 dark:text-white/50">
               No recipes yet. Add some first.
             </p>
           ) : (
             <div className="max-h-52 space-y-1 overflow-y-auto">
+              {!q ? (
+                <p className="px-1 pb-1 text-[11px] font-medium uppercase tracking-wide text-black/35 dark:text-white/35">
+                  Haven&apos;t had in a while
+                </p>
+              ) : null}
               {filtered.map((r) => (
                 <button
                   key={r.id}
                   onClick={() => setSelectedRecipe(r)}
                   className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${selectedRecipe?.id === r.id ? "bg-brand-600 text-white" : "hover:bg-black/5 dark:hover:bg-white/10"}`}
                 >
-                  <span className="flex-1 truncate">{r.title}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {r.title}
+                    <span className={`block text-[11px] ${selectedRecipe?.id === r.id ? "opacity-80" : "text-black/40 dark:text-white/40"}`}>
+                      {lastUsedLabel(r.lastUsedAt)}
+                    </span>
+                  </span>
                   {r.suitableFor.includes(mealType) ? (
-                    <span className={`text-[10px] ${selectedRecipe?.id === r.id ? "opacity-80" : "text-brand-500"}`}>
+                    <span className={`shrink-0 text-[10px] ${selectedRecipe?.id === r.id ? "opacity-80" : "text-brand-500"}`}>
                       suits {mealType.toLowerCase()}
                     </span>
                   ) : null}

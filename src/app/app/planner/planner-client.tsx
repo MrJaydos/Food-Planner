@@ -21,6 +21,7 @@ export interface PlannerRecipe {
   imageUrl: string | null;
   suitableFor: MealType[];
   servings: number | null;
+  lastUsedAt: string | null;
 }
 export interface PlannerMember {
   membershipId: string;
