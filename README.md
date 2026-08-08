@@ -11,8 +11,35 @@ installable as a PWA, and deployed on [Coolify](https://coolify.io) via a Docker
 - **PWA:** Installable, offline-readable shopping list (Serwist service worker)
 - **Deploy:** Multi-stage Dockerfile, healthcheck at `/api/health`, Prisma migrations on boot
 
-> **Status:** built in phases. Phase 1 (scaffold + deploy pipeline) is complete;
-> later phases add auth, recipes, the planner, the shopping list, suggestions, and PWA polish.
+## Features
+
+- **Passwordless auth** — magic-link sign-in; sessions work as browser cookies and
+  as bearer tokens (ready for a future native app). First sign-in creates your
+  household; invite a partner to share everything.
+- **Recipes** — manual editor with structured ingredients (paste-to-parse),
+  photos, tags, meal types, and **sub-recipes** (a recipe can include another,
+  with circular-reference detection). Import from a URL via schema.org JSON-LD.
+- **Weekly planner** — Mon–Sun grid, **multiple entries per slot** (two different
+  lunches, each assigned to a person or everyone), custom and eating-out entries,
+  and copy-a-previous-week.
+- **Shopping list** — generated from the week's plan: recursively expands
+  sub-recipes, aggregates ingredients (merging g/kg & ml/l, listing incompatible
+  units separately), groups by category, and stays checkable & editable.
+  Regeneration preserves check-offs and manual items.
+- **Suggestions** — "haven't had in a while" ordering and a weighted **Surprise
+  Me** that favours recipes you haven't cooked recently.
+- **PWA** — installable, with the shopping list readable offline; check-offs made
+  offline sync when you're back online.
+
+Everything is behind a versioned `/api/v1/...` JSON API so a native app can reuse
+it later.
+
+### Demo data
+
+`npm run seed` creates a **Demo Kitchen** household with six recipes (including
+Chimichurri & Guacamole as sub-recipes of Steak Tacos) and a starter weekly plan.
+In dev, sign in as `demo@foodplanner.local` — the magic link is printed to the
+server console.
 
 ## Data model at a glance
 
