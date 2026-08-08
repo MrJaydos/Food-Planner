@@ -3,97 +3,11 @@ import { prisma } from "./prisma";
 import { dateOnly } from "./week";
 import { toMergeKey, formatMetric, tidyNumber } from "./units";
 import { CATEGORY_ORDER } from "./format";
-
-// --- Recipe expansion -----------------------------------------------------
-
-interface RecipeData {
-  ingredients: Array<{
-    ingredientId: string;
-    name: string;
-    category: IngredientCategory;
-    quantity: number | null;
-    unit: string | null;
-  }>;
-  components: Array<{ childRecipeId: string; quantityMultiplier: number }>;
-}
-
-interface ExpandedUsage {
-  ingredientId: string;
-  name: string;
-  category: IngredientCategory;
-  quantity: number | null;
-  unit: string | null;
-}
-
-async function loadRecipe(
-  recipeId: string,
-  cache: Map<string, RecipeData>,
-): Promise<RecipeData> {
-  const cached = cache.get(recipeId);
-  if (cached) return cached;
-  const recipe = await prisma.recipe.findUnique({
-    where: { id: recipeId },
-    include: {
-      ingredients: { include: { ingredient: true }, orderBy: { sortOrder: "asc" } },
-      components: true,
-    },
-  });
-  const data: RecipeData = {
-    ingredients:
-      recipe?.ingredients.map((ri) => ({
-        ingredientId: ri.ingredientId,
-        name: ri.ingredient.name,
-        category: ri.ingredient.category,
-        quantity: ri.quantity,
-        unit: ri.unit,
-      })) ?? [],
-    components:
-      recipe?.components.map((c) => ({
-        childRecipeId: c.childRecipeId,
-        quantityMultiplier: c.quantityMultiplier,
-      })) ?? [],
-  };
-  cache.set(recipeId, data);
-  return data;
-}
-
-/**
- * Recursively expand a recipe into base ingredient usages, applying the
- * multiplier at each level. `path` guards against cycles (already blocked on
- * save, but defensive here).
- */
-async function expandRecipe(
-  recipeId: string,
-  multiplier: number,
-  cache: Map<string, RecipeData>,
-  path: Set<string>,
-  out: ExpandedUsage[],
-): Promise<void> {
-  if (path.has(recipeId)) return; // cycle guard
-  path.add(recipeId);
-  const data = await loadRecipe(recipeId, cache);
-
-  for (const ing of data.ingredients) {
-    out.push({
-      ingredientId: ing.ingredientId,
-      name: ing.name,
-      category: ing.category,
-      quantity: ing.quantity == null ? null : ing.quantity * multiplier,
-      unit: ing.unit,
-    });
-  }
-  for (const comp of data.components) {
-    await expandRecipe(
-      comp.childRecipeId,
-      multiplier * comp.quantityMultiplier,
-      cache,
-      path,
-      out,
-    );
-  }
-
-  path.delete(recipeId);
-}
+import {
+  createRecipeCache,
+  expandRecipe,
+  type ExpandedUsage,
+} from "./recipe-expand";
 
 // --- Aggregation ----------------------------------------------------------
 
@@ -208,7 +122,7 @@ export async function generateShoppingList(
   if (!plan) return null;
 
   // Expand every recipe entry (skips CUSTOM and EATING_OUT by the where clause).
-  const cache = new Map<string, RecipeData>();
+  const cache = createRecipeCache();
   const usages: ExpandedUsage[] = [];
   for (const slot of plan.slots) {
     for (const entry of slot.entries) {

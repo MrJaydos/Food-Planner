@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { MealType } from "@prisma/client";
 import type { WeekEntryDTO } from "@/lib/meal-plans";
+import type { OverlapSuggestion } from "@/lib/ingredient-overlap";
 import { Sheet } from "@/components/sheet";
 import { lastUsedLabel } from "@/lib/format";
 import type { PlannerRecipe, PlannerMember } from "./planner-client";
@@ -89,6 +90,24 @@ export function AddEntrySheet({
     }
   }
 
+  // Recipes that reuse fresh ingredients this week's plan already commits to.
+  const [overlap, setOverlap] = useState<OverlapSuggestion[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams({ mealType, limit: "4" });
+    fetch(`/api/v1/meal-plans/${weekStart}/suggestions?${params}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (!cancelled && body?.data) setOverlap(body.data);
+      })
+      .catch(() => {
+        /* suggestions are a nicety — never block adding a meal */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [weekStart, mealType]);
+
   // Custom / eating out
   const [customText, setCustomText] = useState("");
   const [note, setNote] = useState("");
@@ -161,7 +180,42 @@ export function AddEntrySheet({
             </p>
           ) : (
             <div className="max-h-52 space-y-1 overflow-y-auto">
-              {!q ? (
+              {!q && overlap.length > 0 ? (
+                <>
+                  <p className="px-1 pb-1 text-[11px] font-medium uppercase tracking-wide text-brand-600 dark:text-brand-300">
+                    Uses what you&apos;re already buying
+                  </p>
+                  {overlap.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() =>
+                        setSelectedRecipe({
+                          id: s.id,
+                          title: s.title,
+                          imageUrl: s.imageUrl,
+                          suitableFor: s.suitableFor,
+                          servings: null,
+                          lastUsedAt: s.lastUsedAt,
+                        })
+                      }
+                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${selectedRecipe?.id === s.id ? "bg-brand-600 text-white" : "hover:bg-black/5 dark:hover:bg-white/10"}`}
+                    >
+                      <span className="min-w-0 flex-1 truncate">
+                        {s.title}
+                        <span
+                          className={`block truncate text-[11px] ${selectedRecipe?.id === s.id ? "opacity-80" : "text-brand-600 dark:text-brand-300"}`}
+                        >
+                          {s.reason}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                  <p className="px-1 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-black/35 dark:text-white/35">
+                    Haven&apos;t had in a while
+                  </p>
+                </>
+              ) : null}
+              {!q && overlap.length === 0 ? (
                 <p className="px-1 pb-1 text-[11px] font-medium uppercase tracking-wide text-black/35 dark:text-white/35">
                   Haven&apos;t had in a while
                 </p>
