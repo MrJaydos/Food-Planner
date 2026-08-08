@@ -32,3 +32,38 @@ export const recipeInputSchema = z.object({
 });
 
 export type RecipeInputSchema = z.infer<typeof recipeInputSchema>;
+
+// --- Meal planner ---------------------------------------------------------
+
+export const slotEntryKindEnum = z.enum(["RECIPE", "CUSTOM", "EATING_OUT"]);
+
+export const addEntrySchema = z
+  .object({
+    dayOfWeek: z.number().int().min(0).max(6),
+    mealType: mealTypeEnum,
+    kind: slotEntryKindEnum,
+    recipeId: z.string().min(1).nullable().optional(),
+    servingMultiplier: z.number().positive().max(1000).optional(),
+    customText: z.string().trim().max(300).nullable().optional(),
+    note: z.string().trim().max(300).nullable().optional(),
+    assigneeMembershipId: z.string().min(1).nullable().optional(),
+  })
+  .refine((v) => v.kind !== "RECIPE" || !!v.recipeId, {
+    message: "recipeId is required for recipe entries",
+    path: ["recipeId"],
+  })
+  .refine((v) => v.kind !== "CUSTOM" || !!v.customText?.trim(), {
+    message: "customText is required for custom entries",
+    path: ["customText"],
+  });
+
+export const updateEntrySchema = z.object({
+  servingMultiplier: z.number().positive().max(1000).optional(),
+  customText: z.string().trim().max(300).nullable().optional(),
+  note: z.string().trim().max(300).nullable().optional(),
+  assigneeMembershipId: z.string().min(1).nullable().optional(),
+});
+
+export const copyWeekSchema = z.object({
+  fromWeekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});

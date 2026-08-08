@@ -1,16 +1,43 @@
-import { PageHeader } from "@/components/page-header";
-import { EmptyState } from "@/components/empty-state";
+import { requireContext } from "@/lib/guard";
+import { getWeekPlan } from "@/lib/meal-plans";
+import { listRecipes } from "@/lib/recipe-queries";
+import { currentWeekStart, normalizeWeekStart } from "@/lib/week";
+import { PlannerClient, type PlannerRecipe, type PlannerMember } from "./planner-client";
 
 export const dynamic = "force-dynamic";
 
-export default function PlannerPlaceholder() {
+export default async function PlannerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
+  const ctx = await requireContext("/app/planner");
+  const { week } = await searchParams;
+  const weekStart = (week && normalizeWeekStart(week)) || currentWeekStart();
+
+  const [plan, recipes] = await Promise.all([
+    getWeekPlan(ctx.household.id, weekStart),
+    listRecipes(ctx.household.id),
+  ]);
+
+  const plannerRecipes: PlannerRecipe[] = recipes.map((r) => ({
+    id: r.id,
+    title: r.title,
+    imageUrl: r.imageUrl,
+    suitableFor: r.suitableFor,
+    servings: r.servings,
+  }));
+  const members: PlannerMember[] = ctx.members.map((m) => ({
+    membershipId: m.membershipId,
+    name: m.name ?? m.email,
+  }));
+
   return (
-    <>
-      <PageHeader title="Planner" />
-      <EmptyState
-        title="Weekly planner coming soon"
-        description="The week grid, multi-person slots and eating-out markers arrive in the planner phase."
-      />
-    </>
+    <PlannerClient
+      weekStart={weekStart}
+      initialPlan={plan}
+      recipes={plannerRecipes}
+      members={members}
+    />
   );
 }
