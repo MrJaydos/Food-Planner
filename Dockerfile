@@ -20,6 +20,18 @@ RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
+# ---- Prisma CLI ----------------------------------------------------------
+# The CLI is installed on its own so it arrives with a complete dependency tree
+# (@prisma/config pulls in `effect`, etc.). Cherry-picking node_modules
+# subtrees out of the builder leaves those transitive deps behind.
+FROM base AS prisma-cli
+WORKDIR /prisma-cli
+COPY package-lock.json ./
+RUN PRISMA_VERSION="$(node -p "require('./package-lock.json').packages['node_modules/prisma'].version")" \
+  && rm -f package-lock.json \
+  && npm init -y > /dev/null \
+  && npm install --omit=dev --no-audit --no-fund "prisma@${PRISMA_VERSION}"
+
 # ---- Runner (slim runtime) ----------------------------------------------
 FROM base AS runner
 ENV NODE_ENV=production
@@ -35,12 +47,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Prisma CLI + engines + schema/migrations, so migrations can run at boot.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+# Generated client + engines for the running app.
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+# Schema + migrations, and the CLI that applies them at boot.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=prisma-cli --chown=nextjs:nodejs /prisma-cli/node_modules ./prisma-cli/node_modules
 
 # Entrypoint runs migrations then starts the server.
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh

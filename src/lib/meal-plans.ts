@@ -2,8 +2,6 @@ import type { MealType, SlotEntryKind, Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { addDays, dateOnly, formatDateOnly } from "./week";
 
-const MEAL_TYPES: MealType[] = ["BREAKFAST", "LUNCH", "DINNER"];
-
 export interface WeekEntryDTO {
   id: string;
   kind: SlotEntryKind;
