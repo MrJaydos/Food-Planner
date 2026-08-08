@@ -1,0 +1,350 @@
+// Food Planner — data model
+// Ownership boundary is the Household: every recipe, plan, list and ingredient
+// belongs to a household, never to an individual user. Two partners share one
+// household and therefore see/edit the same data.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth & accounts
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique // stored lowercased
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  sessions    Session[]
+
+  @@map("users")
+}
+
+model Household {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships   Membership[]
+  recipes       Recipe[]
+  ingredients   Ingredient[]
+  mealPlans     MealPlan[]
+  shoppingLists ShoppingList[]
+  invites       Invite[]
+
+  @@map("households")
+}
+
+enum MembershipRole {
+  OWNER
+  MEMBER
+}
+
+model Membership {
+  id          String         @id @default(cuid())
+  userId      String
+  householdId String
+  role        MembershipRole @default(MEMBER)
+  createdAt   DateTime       @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  // Meal-slot entries assigned specifically to this member (null assignee = everyone).
+  assignedEntries MealSlotEntry[] @relation("EntryAssignee")
+  createdInvites  Invite[]        @relation("InviteCreator")
+
+  @@unique([userId, householdId])
+  @@index([householdId])
+  @@map("memberships")
+}
+
+// Session backs both the browser cookie and bearer tokens for native clients.
+// `tokenHash` is a SHA-256 of the opaque token; the raw token is never stored.
+model Session {
+  id                String   @id @default(cuid())
+  tokenHash         String   @unique
+  userId            String
+  activeHouseholdId String
+  userAgent         String?
+  createdAt         DateTime @default(now())
+  lastUsedAt        DateTime @default(now())
+  expiresAt         DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// Single-use magic-link login tokens. Only the hash is stored; short expiry.
+model MagicLinkToken {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  email      String // lowercased target email
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  @@index([email])
+  @@map("magic_link_tokens")
+}
+
+// Partner invite: shareable code that joins the invitee to an existing household.
+model Invite {
+  id          String    @id @default(cuid())
+  householdId String
+  codeHash    String    @unique
+  email       String? // optional intended recipient
+  createdById String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+
+  household Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  createdBy Membership @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
+  @@map("invites")
+}
+
+// ---------------------------------------------------------------------------
+// Recipes & ingredients
+// ---------------------------------------------------------------------------
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
+// Normalized ingredient, scoped to a household. `normalizedKey` lets "Onion"
+// and "onions" resolve to the same item for aggregation and (future) overlap
+// suggestions. Category drives shopping-list grouping.
+model Ingredient {
+  id            String              @id @default(cuid())
+  householdId   String
+  name          String // display name, e.g. "Onion"
+  normalizedKey String // matching key, e.g. "onion"
+  category      IngredientCategory  @default(OTHER)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  household         Household           @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  recipeIngredients RecipeIngredient[]
+  shoppingItems     ShoppingListItem[]
+
+  @@unique([householdId, normalizedKey])
+  @@index([householdId])
+  @@map("ingredients")
+}
+
+enum IngredientCategory {
+  PRODUCE
+  MEAT_SEAFOOD
+  DAIRY_EGGS
+  BAKERY
+  PANTRY
+  FROZEN
+  BEVERAGES
+  SPICES
+  CONDIMENTS
+  HOUSEHOLD
+  OTHER
+}
+
+model Recipe {
+  id              String   @id @default(cuid())
+  householdId     String
+  title           String
+  description     String?
+  servings        Int?
+  prepTimeMinutes Int?
+  cookTimeMinutes Int?
+  steps           String[] // ordered; may be empty for "loose" recipes
+  tags            String[] // freeform tags
+  suitableFor     MealType[] // meal types this recipe fits (drives Surprise Me)
+  sourceUrl       String?
+  imageUrl        String? // remote URL or /api/v1/uploads/... path
+  lastUsedAt      DateTime? // updated when it appears in a past/completed week
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  household   Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+
+  // Sub-recipe graph: components this recipe is built from, and recipes that
+  // use this recipe as a component.
+  components   RecipeComponent[] @relation("ParentRecipe")
+  usedInParent RecipeComponent[] @relation("ChildRecipe")
+
+  slotEntries MealSlotEntry[]
+
+  @@index([householdId])
+  @@map("recipes")
+}
+
+// A recipe line item that references quantity/unit/name, normalized to an
+// Ingredient. rawText preserves the original string as a fallback.
+model RecipeIngredient {
+  id           String  @id @default(cuid())
+  recipeId     String
+  ingredientId String
+  quantity     Float?
+  unit         String? // canonical-ish unit token, e.g. "g", "ml", "tbsp"
+  note         String? // e.g. "finely chopped"
+  rawText      String? // original parsed string
+  sortOrder    Int     @default(0)
+
+  recipe     Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@index([recipeId])
+  @@index([ingredientId])
+  @@map("recipe_ingredients")
+}
+
+// Sub-recipe join: parent recipe uses child recipe with a quantity multiplier.
+// Circular references are detected and blocked in application code on save.
+model RecipeComponent {
+  id                 String   @id @default(cuid())
+  parentRecipeId     String
+  childRecipeId      String
+  quantityMultiplier Float    @default(1)
+  note               String?
+  sortOrder          Int      @default(0)
+
+  parent Recipe @relation("ParentRecipe", fields: [parentRecipeId], references: [id], onDelete: Cascade)
+  child  Recipe @relation("ChildRecipe", fields: [childRecipeId], references: [id], onDelete: Cascade)
+
+  @@unique([parentRecipeId, childRecipeId])
+  @@index([parentRecipeId])
+  @@index([childRecipeId])
+  @@map("recipe_components")
+}
+
+// ---------------------------------------------------------------------------
+// Weekly planner
+// ---------------------------------------------------------------------------
+
+model MealPlan {
+  id          String   @id @default(cuid())
+  householdId String
+  weekStart   DateTime @db.Date // the Monday of the week
+  title       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  slots        MealSlot[]
+  shoppingList ShoppingList?
+
+  @@unique([householdId, weekStart])
+  @@index([householdId])
+  @@map("meal_plans")
+}
+
+model MealSlot {
+  id         String   @id @default(cuid())
+  mealPlanId String
+  dayOfWeek  Int // 0 = Monday .. 6 = Sunday
+  mealType   MealType
+
+  mealPlan MealPlan        @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  entries  MealSlotEntry[]
+
+  @@unique([mealPlanId, dayOfWeek, mealType])
+  @@index([mealPlanId])
+  @@map("meal_slots")
+}
+
+enum SlotEntryKind {
+  RECIPE
+  CUSTOM
+  EATING_OUT
+}
+
+// A single meal within a slot. Slots hold MANY entries (e.g. two partners
+// eating different lunches). Each entry is a recipe, a free-text custom meal,
+// or an eating-out marker (excluded from shopping list).
+model MealSlotEntry {
+  id                   String        @id @default(cuid())
+  mealSlotId           String
+  kind                 SlotEntryKind
+  sortOrder            Int           @default(0)
+
+  // RECIPE
+  recipeId         String?
+  servingMultiplier Float  @default(1)
+
+  // CUSTOM
+  customText String?
+
+  // EATING_OUT / general note (e.g. restaurant name)
+  note String?
+
+  // null assignee = "everyone"
+  assigneeMembershipId String?
+
+  createdAt DateTime @default(now())
+
+  slot     MealSlot    @relation(fields: [mealSlotId], references: [id], onDelete: Cascade)
+  recipe   Recipe?     @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  assignee Membership? @relation("EntryAssignee", fields: [assigneeMembershipId], references: [id], onDelete: SetNull)
+
+  @@index([mealSlotId])
+  @@index([recipeId])
+  @@map("meal_slot_entries")
+}
+
+// ---------------------------------------------------------------------------
+// Shopping list
+// ---------------------------------------------------------------------------
+
+model ShoppingList {
+  id          String   @id @default(cuid())
+  householdId String
+  mealPlanId  String   @unique
+  generatedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  household Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  mealPlan  MealPlan           @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  items     ShoppingListItem[]
+
+  @@index([householdId])
+  @@map("shopping_lists")
+}
+
+model ShoppingListItem {
+  id             String             @id @default(cuid())
+  shoppingListId String
+  ingredientId   String? // null for purely manual items
+  displayName    String
+  quantity       Float?
+  unit           String?
+  category       IngredientCategory @default(OTHER)
+  note           String?
+  checked        Boolean            @default(false)
+  isManual       Boolean            @default(false)
+  sortOrder      Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  shoppingList ShoppingList @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient?  @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
+
+  @@index([shoppingListId])
+  @@map("shopping_list_items")
+}
