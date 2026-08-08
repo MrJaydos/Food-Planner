@@ -67,3 +67,34 @@ export const updateEntrySchema = z.object({
 export const copyWeekSchema = z.object({
   fromWeekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
+
+// --- Shopping list --------------------------------------------------------
+
+export const categoryEnum = z.enum([
+  "PRODUCE",
+  "MEAT_SEAFOOD",
+  "DAIRY_EGGS",
+  "BAKERY",
+  "PANTRY",
+  "FROZEN",
+  "BEVERAGES",
+  "SPICES",
+  "CONDIMENTS",
+  "HOUSEHOLD",
+  "OTHER",
+]);
+
+export const manualItemSchema = z.object({
+  displayName: z.string().trim().min(1).max(200),
+  quantity: z.number().positive().max(100000).nullable().optional(),
+  unit: z.string().trim().max(40).nullable().optional(),
+  category: categoryEnum.optional(),
+});
+
+export const updateItemSchema = z.object({
+  checked: z.boolean().optional(),
+  displayName: z.string().trim().min(1).max(200).optional(),
+  quantity: z.number().positive().max(100000).nullable().optional(),
+  unit: z.string().trim().max(40).nullable().optional(),
+  category: categoryEnum.optional(),
+});
