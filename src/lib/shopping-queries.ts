@@ -37,7 +37,22 @@ function mapItem(i: {
   isManual: boolean;
   sortOrder: number;
 }): ShoppingItemDTO {
-  return { ...i };
+  // Pick fields explicitly. Spreading `i` looks equivalent but isn't: callers
+  // pass whole Prisma rows, so a spread also leaked shoppingListId, createdAt
+  // and updatedAt into the API — invisible to tsc, because the declared return
+  // type doesn't excess-property-check a spread.
+  return {
+    id: i.id,
+    ingredientId: i.ingredientId,
+    displayName: i.displayName,
+    quantity: i.quantity,
+    unit: i.unit,
+    category: i.category,
+    note: i.note,
+    checked: i.checked,
+    isManual: i.isManual,
+    sortOrder: i.sortOrder,
+  };
 }
 
 export async function getShoppingListByWeek(

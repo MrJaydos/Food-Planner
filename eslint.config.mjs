@@ -17,6 +17,21 @@ const config = [
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    rules: {
+      // A leading underscore marks something intentionally unused — notably the
+      // `Assert<Equal<...>>` types in openapi.ts, whose only job is to fail
+      // compilation when a DTO and its schema drift apart.
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          varsIgnorePattern: "^_",
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
 ];
 
 export default config;

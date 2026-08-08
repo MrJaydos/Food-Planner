@@ -26,13 +26,36 @@ installable as a PWA, and deployed on [Coolify](https://coolify.io) via a Docker
   sub-recipes, aggregates ingredients (merging g/kg & ml/l, listing incompatible
   units separately), groups by category, and stays checkable & editable.
   Regeneration preserves check-offs and manual items.
-- **Suggestions** — "haven't had in a while" ordering and a weighted **Surprise
-  Me** that favours recipes you haven't cooked recently.
+- **Suggestions** — "haven't had in a while" ordering, a weighted **Surprise
+  Me** that favours recipes you haven't cooked recently, and **shared-ingredient
+  week shaping**: when adding a meal, recipes that reuse fresh ingredients the
+  week already needs are offered first ("Also uses coriander and lime"), to cut
+  waste and shopping volume. Staples are ignored, so it doesn't just tell you
+  everything shares salt.
 - **PWA** — installable, with the shopping list readable offline; check-offs made
   offline sync when you're back online.
 
-Everything is behind a versioned `/api/v1/...` JSON API so a native app can reuse
-it later.
+## API
+
+Everything is behind a versioned `/api/v1/...` JSON API — the web UI uses the
+same endpoints a native app would, and sessions work as cookies or as bearer
+tokens (`POST /api/v1/auth/verify`).
+
+The API describes itself two ways:
+
+- **`openapi.json`** — OpenAPI 3.1, regenerate with `npm run api:spec`, also
+  served live at `GET /api/v1/openapi.json`. Generate a typed client with:
+
+  ```bash
+  npx openapi-typescript http://localhost:3000/api/v1/openapi.json -o client.ts
+  ```
+
+- **`src/lib/api-types.ts`** — the same contract as TypeScript types, for
+  consumers sharing this codebase.
+
+The two can't drift: response schemas are pinned to the TypeScript DTOs by
+compile-time assertions, and request bodies reuse the very schemas the routes
+validate against, so `npm run typecheck` fails if they diverge.
 
 ### Demo data
 
@@ -80,6 +103,7 @@ are printed to the server console so you can log in locally without sending emai
 | `npm run prisma:deploy` | Apply migrations (used on container boot) |
 | `npm run typecheck` | TypeScript check |
 | `npm run seed` | Seed demo data |
+| `npm run api:spec` | Regenerate `openapi.json` |
 
 ## Environment variables
 

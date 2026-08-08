@@ -25,6 +25,7 @@ covers ordinary finished work, not judgement calls.
 | `npm run lint` | ESLint (flat config, `eslint.config.mjs`) |
 | `npm run prisma:migrate` | Create/apply a dev migration |
 | `npm run seed` | Demo household, recipes and a starter week |
+| `npm run api:spec` | Regenerate `openapi.json` from the Zod schemas |
 
 ## Things that bite
 
@@ -65,23 +66,43 @@ code, and that changes should not quietly break:
   back a bearer token (`POST /api/v1/auth/verify`), not just a cookie.
 - **Household owns everything**, never the individual user. A solo user is a
   household of one.
-- **The normalized `Ingredient` table exists for a feature that isn't built
-  yet** — suggesting recipes that overlap ingredients with meals already
-  planned that week, to cut waste. Keep normalization intact even though
-  nothing consumes it beyond aggregation today.
+- **The normalized `Ingredient` table is what makes shared-ingredient
+  suggestions possible.** Keep normalization intact — if the same onion stops
+  resolving to one ingredient row, both shopping aggregation and week shaping
+  degrade silently.
 - **No third-party analytics or trackers.** Self-hosted and private.
 - **Don't guess unit conversions** beyond simple metric ones (g/kg, ml/l).
   Incompatible units get listed separately rather than merged.
 - **Sub-recipe cycles must stay blocked on save**, at any nesting depth.
 
-### Not yet built
+Everything in the brief is now built, including the two items deferred from v1:
+shared-ingredient week shaping and the typed API contract.
 
-- The shared-ingredient "week shaping" suggestion engine (deliberately deferred
-  to v1+; schema is ready for it).
-- A **typed API contract for external clients** — the brief asked for a shared
-  TypeScript types package or a generated OpenAPI spec so an app client could be
-  generated later. Types are currently internal DTOs (`src/lib/*-queries.ts`)
-  with no exported package or spec. Worth closing before any native app work.
+## The API contract
+
+`/api/v1` has two descriptions of itself, and they are kept honest by
+construction rather than by discipline:
+
+- `src/lib/api-types.ts` — the TypeScript surface. A pure re-export barrel; a
+  client imports this instead of reaching into internal query modules.
+- `openapi.json` — OpenAPI 3.1, regenerate with `npm run api:spec`, also served
+  live at `GET /api/v1/openapi.json`. Validates clean under
+  `npx @redocly/cli lint`, and generates a working client via
+  `npx openapi-typescript`.
+
+**How they stay in step.** `src/lib/openapi.ts` mirrors each DTO as a Zod schema
+and pins it to the TypeScript type with `Assert<Equal<...>>`. Change a DTO
+without changing its schema and `npm run typecheck` fails, naming the schema.
+Request bodies reuse the same Zod schemas the routes validate with, so those
+can't drift at all. Add an endpoint → add it to `buildPaths()`; add a DTO → add
+its schema and assertion.
+
+**What that does *not* catch:** whether a route actually returns what its DTO
+claims. Type assertions compare types to types. A handler that spreads a Prisma
+row into a DTO-typed return will leak columns and still typecheck — that
+happened, and only validating live responses against the spec found it. When
+touching response shapes, validate real payloads against `openapi.json`
+(ajv over the component schemas) rather than trusting the types alone.
 
 ## Original brief
 
