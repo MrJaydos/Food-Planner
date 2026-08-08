@@ -18,17 +18,24 @@ COPY . .
 # Prisma client must be generated before the Next build.
 RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
+# Cap the heap so a memory-constrained build host fails loudly with a JS OOM
+# instead of having the whole step killed silently mid-typecheck. Raise this if
+# your builder has headroom.
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN npm run build
 
 # ---- Prisma CLI ----------------------------------------------------------
 # The CLI is installed on its own so it arrives with a complete dependency tree
 # (@prisma/config pulls in `effect`, etc.). Cherry-picking node_modules
 # subtrees out of the builder leaves those transitive deps behind.
-FROM base AS prisma-cli
+#
+# Based on `builder` (not `base`) purely to serialise it: as an independent
+# stage BuildKit runs this npm install concurrently with `npm ci` and the Next
+# build, and the extra peak memory can tip a small build host into the OOM
+# killer.
+FROM builder AS prisma-cli
 WORKDIR /prisma-cli
-COPY package-lock.json ./
-RUN PRISMA_VERSION="$(node -p "require('./package-lock.json').packages['node_modules/prisma'].version")" \
-  && rm -f package-lock.json \
+RUN PRISMA_VERSION="$(node -p "require('/app/package-lock.json').packages['node_modules/prisma'].version")" \
   && npm init -y > /dev/null \
   && npm install --omit=dev --no-audit --no-fund "prisma@${PRISMA_VERSION}"
 
