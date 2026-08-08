@@ -1,8 +1,32 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { clsx } from "clsx";
+
+/**
+ * Routes that lay out across the full width on desktop. Everything else is
+ * long-form (forms, a recipe, a shopping list) and stays at a readable measure
+ * rather than stretching to the window.
+ */
+function isWideRoute(pathname: string): boolean {
+  return pathname === "/app/planner" || pathname === "/app/recipes";
+}
+
+/** Centres app content, widening only where the page has a grid to fill. */
+export function AppContainer({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  return (
+    <div
+      className={clsx(
+        "mx-auto min-h-dvh w-full pb-20",
+        isWideRoute(pathname) ? "max-w-2xl lg:max-w-7xl" : "max-w-2xl",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
 
 interface NavItem {
   href: string;
@@ -51,6 +75,45 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
+/**
+ * The tab icon, swapped for a spinner while its own navigation is in flight.
+ * useLinkStatus only reports the enclosing Link, so this has to be a child of
+ * it — that's what makes the feedback instant on tap rather than waiting for
+ * the new route to start streaming.
+ */
+function NavIcon({ children }: { children: React.ReactNode }) {
+  const { pending } = useLinkStatus();
+  if (pending) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-6 w-6 animate-spin motion-reduce:animate-pulse"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        aria-hidden
+      >
+        <circle cx="12" cy="12" r="9" className="opacity-25" />
+        <path d="M21 12a9 9 0 0 0-9-9" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </svg>
+  );
+}
+
 export function BottomNav() {
   const pathname = usePathname();
   return (
@@ -69,17 +132,7 @@ export function BottomNav() {
                     : "text-black/50 dark:text-white/50",
                 )}
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-6 w-6"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  {item.icon}
-                </svg>
+                <NavIcon>{item.icon}</NavIcon>
                 {item.label}
               </Link>
             </li>

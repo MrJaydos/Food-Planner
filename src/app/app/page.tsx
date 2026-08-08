@@ -32,9 +32,9 @@ export default async function Dashboard() {
         title={firstName ? `Hi, ${firstName}` : "Welcome"}
         subtitle={ctx.household.name}
       />
-      <div className="space-y-3 p-4">
+      <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
         {tiles.map((t) => (
-          <Link key={t.href} href={t.href} className="card block p-5">
+          <Link key={t.href} href={t.href} className="card block h-full p-5">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-semibold">{t.title}</h2>

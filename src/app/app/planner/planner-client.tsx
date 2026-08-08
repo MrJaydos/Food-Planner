@@ -112,7 +112,7 @@ export function PlannerClient({
       </header>
 
       {/* Week grid */}
-      <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-7 lg:gap-2">
+      <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 xl:gap-2">
         {plan.days.map((day) => {
           const today = day.date === formatDateOnly(new Date());
           return (
@@ -122,8 +122,8 @@ export function PlannerClient({
             >
               <div className="mb-2 flex items-baseline justify-between">
                 <h2 className="font-semibold">
-                  <span className="lg:hidden">{DAY_NAMES[day.dayOfWeek]}</span>
-                  <span className="hidden lg:inline">{DAY_SHORT[day.dayOfWeek]}</span>
+                  <span className="xl:hidden">{DAY_NAMES[day.dayOfWeek]}</span>
+                  <span className="hidden xl:inline">{DAY_SHORT[day.dayOfWeek]}</span>
                 </h2>
                 <span className="text-xs text-black/40 dark:text-white/40">
                   {dateOnly(day.date).toLocaleDateString("en-GB", {

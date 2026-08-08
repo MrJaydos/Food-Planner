@@ -59,14 +59,14 @@ export default async function RecipesPage({
             }
           />
         ) : (
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {recipes.map((r) => {
               const time = formatTime(
                 (r.prepTimeMinutes ?? 0) + (r.cookTimeMinutes ?? 0) || null,
               );
               return (
                 <li key={r.id}>
-                  <Link href={`/app/recipes/${r.id}`} className="card flex gap-3 overflow-hidden p-0">
+                  <Link href={`/app/recipes/${r.id}`} className="card flex h-full gap-3 overflow-hidden p-0">
                     {r.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
